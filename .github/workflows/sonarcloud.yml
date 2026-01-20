@@ -55,3 +55,4 @@ jobs:
             -Dsonar.projectKey=cloud-thb_we-rescue-cats-cloud
             -Dsonar.organization=cloud-thb
             -Dsonar.host.url=https://sonarcloud.io
+            -Dsonar.java.binaries=target/classes
