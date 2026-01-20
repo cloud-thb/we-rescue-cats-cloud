@@ -14,12 +14,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup JDK
-        uses: actions/setup-java@v1
+        uses: actions/setup-java@v4
         with:
+          distribution: 'temurin'
           java-version: '21'
+          cache: 'maven'
 
       - name: Build with Maven (backend)
         working-directory: backend
@@ -41,7 +45,7 @@ jobs:
         with:
           projectBaseDir: backend
           args: >
-            -Dsonar.projectKey=dein_sonarcloud_projekt
-            -Dsonar.organization=dein_organisation
+            -Dsonar.projectKey=cloud-thb_we-rescue-cats-cloud
+            -Dsonar.organization=cloud-thb
             -Dsonar.host.url=https://sonarcloud.io
             -Dsonar.login=${{ secrets.SONAR_TOKEN }}
