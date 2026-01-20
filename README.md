@@ -1,3 +1,5 @@
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=cloud-thb_we-rescue-cats-cloud&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=cloud-thb_we-rescue-cats-cloud)
+
 # We Rescue Cats 🐱🐾
 
 A comprehensive web portal for cat rescue organizations to manage cat breeds information, adoptable cats, and the adoption process.
