@@ -80,7 +80,7 @@ jobs:
         with:
           name: surefire-reports
           path: backend/target/surefire-reports
-#push on sonarcloud
+
   sonar:
     name: SonarCloud Scan
     runs-on: ubuntu-latest
