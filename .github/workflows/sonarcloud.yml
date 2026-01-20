@@ -9,9 +9,82 @@ on:
       - main
 
 jobs:
-  sonarcloud:
+  build:
+    name: Build backend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          cache: 'maven'
+
+      - name: Compile classes (backend)
+        working-directory: backend
+        run: mvn -B -e -DskipTests compile
+
+      - name: Upload compiled classes
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiled-classes
+          path: backend/target/classes
+
+  test:
+    name: Test backend
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          cache: 'maven'
+
+      - name: Run tests (backend)
+        working-directory: backend
+        env:
+          SPRING_PROFILES_ACTIVE: test
+          SPRING_DATASOURCE_URL: jdbc:h2:mem:testdb
+          SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.h2.Driver
+          SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.H2Dialect
+        run: mvn -B -e test
+
+      - name: Print surefire reports
+        if: failure()
+        working-directory: backend
+        run: |
+          set +e
+          shopt -s nullglob
+          echo "=== surefire report files ==="
+          ls -la target/surefire-reports || true
+          echo "=== contents ==="
+          for f in target/surefire-reports/*.txt target/surefire-reports/*.xml; do
+            [ -f "$f" ] && echo "----- $f -----" && sed -n '1,200p' "$f"
+          done
+
+      - name: Upload surefire reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: backend/target/surefire-reports
+
+  sonar:
     name: SonarCloud Scan
     runs-on: ubuntu-latest
+    needs: [build, test]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -33,38 +106,20 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-sonar-
 
-      - name: Build and Sonar scan with Maven (backend)
+      - name: Download compiled classes
+        uses: actions/download-artifact@v4
+        with:
+          name: compiled-classes
+          path: backend/target/classes
+
+      - name: Sonar scan with Maven (backend)
         working-directory: backend
         env:
-          SPRING_PROFILES_ACTIVE: test
-          SPRING_DATASOURCE_URL: jdbc:h2:mem:testdb
-          SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.h2.Driver
-          SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.H2Dialect
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: >
-          mvn -B -e clean verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
+          mvn -B -e -DskipTests org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
           -Dsonar.projectKey=cloud-thb_we-rescue-cats-cloud
           -Dsonar.organization=cloud-thb
           -Dsonar.host.url=https://sonarcloud.io
           -Dsonar.java.binaries=target/classes
           -Dsonar.login=$SONAR_TOKEN
-
-      - name: Print surefire reports
-        if: failure()
-        working-directory: backend
-        run: |
-          set +e
-          shopt -s nullglob
-          echo "=== surefire report files ==="
-          ls -la target/surefire-reports || true
-          echo "=== contents ==="
-          for f in target/surefire-reports/*.txt target/surefire-reports/*.xml; do
-            [ -f "$f" ] && echo "----- $f -----" && sed -n '1,200p' "$f"
-          done
-
-      - name: Upload surefire reports
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: surefire-reports
-          path: backend/target/surefire-reports
