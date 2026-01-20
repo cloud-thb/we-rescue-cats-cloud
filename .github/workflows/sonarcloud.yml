@@ -42,7 +42,7 @@ jobs:
           SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.H2Dialect
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: >
-          mvn -B -e clean verify sonar:sonar
+          mvn -B -e clean verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
           -Dsonar.projectKey=cloud-thb_we-rescue-cats-cloud
           -Dsonar.organization=cloud-thb
           -Dsonar.host.url=https://sonarcloud.io
@@ -53,6 +53,8 @@ jobs:
         if: failure()
         working-directory: backend
         run: |
+          set +e
+          shopt -s nullglob
           echo "=== surefire report files ==="
           ls -la target/surefire-reports || true
           echo "=== contents ==="
