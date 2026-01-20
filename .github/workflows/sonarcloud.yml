@@ -25,14 +25,29 @@ jobs:
           java-version: '21'
           cache: 'maven'
 
-      - name: Build with Maven (backend)
+      - name: Cache SonarCloud packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-sonar-
+
+      - name: Build and Sonar scan with Maven (backend)
         working-directory: backend
         env:
           SPRING_PROFILES_ACTIVE: test
           SPRING_DATASOURCE_URL: jdbc:h2:mem:testdb
           SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.h2.Driver
           SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.H2Dialect
-        run: mvn -B -e clean test
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: >
+          mvn -B -e clean verify sonar:sonar
+          -Dsonar.projectKey=cloud-thb_we-rescue-cats-cloud
+          -Dsonar.organization=cloud-thb
+          -Dsonar.host.url=https://sonarcloud.io
+          -Dsonar.java.binaries=target/classes
+          -Dsonar.login=$SONAR_TOKEN
 
       - name: Print surefire reports
         if: failure()
@@ -45,14 +60,9 @@ jobs:
             [ -f "$f" ] && echo "----- $f -----" && sed -n '1,200p' "$f"
           done
 
-      - name: SonarCloud Scan (backend)
-        uses: sonarsource/sonarcloud-github-action@4006f663ecaf1f8093e8e4abb9227f6041f52216
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      - name: Upload surefire reports
+        if: failure()
+        uses: actions/upload-artifact@v4
         with:
-          projectBaseDir: backend
-          args: >
-            -Dsonar.projectKey=cloud-thb_we-rescue-cats-cloud
-            -Dsonar.organization=cloud-thb
-            -Dsonar.host.url=https://sonarcloud.io
-            -Dsonar.java.binaries=target/classes
+          name: surefire-reports
+          path: backend/target/surefire-reports
