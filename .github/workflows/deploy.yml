@@ -7,7 +7,7 @@ on:
 
 env:
   AWS_REGION: us-east-1
-  EC2_HOST: 3.238.127.221
+  EC2_HOST: 44.200.166.119
   EC2_USER: ubuntu
   S3_BUCKET: cloud-semesterprojekt-2026
   RDS_ENDPOINT: semesterprojekt-db.chevppzwwnxo.us-east-1.rds.amazonaws.com
