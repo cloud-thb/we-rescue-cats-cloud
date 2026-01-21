@@ -4,15 +4,15 @@ FROM eclipse-temurin:21-jdk-alpine AS builder
 WORKDIR /app
 
 # Copy Maven wrapper and pom.xml
-COPY ./pom.xml .
-COPY ./.mvn ./.mvn
-COPY ./mvnw .
+COPY backend/pom.xml .
+COPY backend/.mvn ./.mvn
+COPY backend/mvnw .
 
 # Download dependencies (cached layer)
 RUN ./mvnw dependency:go-offline -B
 
 # Copy source code
-COPY ./src ./src
+COPY backend/src ./src
 
 # Build the application (skip tests - already run in CI)
 RUN ./mvnw clean package -DskipTests
