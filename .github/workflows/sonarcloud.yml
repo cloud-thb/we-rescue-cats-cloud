@@ -112,45 +112,18 @@ jobs:
           name: compiled-classes
           path: backend/target/classes
 
-      - name: Sonar scan with Maven (backend)
-        working-directory: backend
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: >
-          mvn -B -e -DskipTests org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
-          -Dsonar.projectKey=cloud-thb_we-rescue-cats-cloud
-          -Dsonar.organization=cloud-thb
-          -Dsonar.host.url=https://sonarcloud.io
-          -Dsonar.java.binaries=target/classes
-          -Dsonar.login=$SONAR_TOKEN
-
-  sonar-frontend:
-    name: SonarCloud Scan (frontend)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: SonarCloud Scan (frontend)
+      - name: SonarCloud Scan (monorepo)
         uses: SonarSource/sonarcloud-github-action@v2
         with:
-          projectBaseDir: frontend
+          projectBaseDir: .
           args: >
-            -Dsonar.projectKey=cloud-thb_we-rescue-cats-cloud-frontend
+            -Dsonar.projectKey=cloud-thb_we-rescue-cats-cloud
             -Dsonar.organization=cloud-thb
             -Dsonar.host.url=https://sonarcloud.io
-            -Dsonar.sources=src
-            -Dsonar.tests=src
-            -Dsonar.test.inclusions=**/*.spec.ts
-            -Dsonar.exclusions=**/node_modules/**,**/*.spec.ts
+            -Dsonar.sources=backend/src/main/java,backend/src/main/resources,frontend/src
+            -Dsonar.tests=backend/src/test/java,frontend/src
+            -Dsonar.test.inclusions=backend/src/test/**,frontend/src/**/*.spec.ts
+            -Dsonar.exclusions=**/node_modules/**,backend/target/**,frontend/dist/**,frontend/src/**/*.spec.ts
+            -Dsonar.java.binaries=backend/target/classes
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
