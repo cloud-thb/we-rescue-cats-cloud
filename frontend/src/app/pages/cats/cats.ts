@@ -53,7 +53,7 @@ export class CatsComponent implements OnInit {
 
   loadAvailableCats() {
     this.loading = true;
-    this.catService.getAvailableCats().subscribe({
+    this.catService.getAllCats().subscribe({
       next: (cats) => {
         if (cats) {
           this.allCats = cats.filter(cat => cat.adoptionStatus === 'AVAILABLE');
