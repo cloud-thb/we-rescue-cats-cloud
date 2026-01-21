@@ -197,7 +197,7 @@ public class DataInitializationService {
             cat.setDescription(descriptions[random.nextInt(descriptions.length)]);
             Breed breed = availableBreeds.get(random.nextInt(availableBreeds.size()));
             cat.setBreed(breed);
-            cat.setImageUrl(fetchImageUrlForSpecificBreed(breed.getId()));
+            cat.setImageUrl(breed.getImageUrl());
 
             // Random coordinates around Dresden
             cat.setGender(gender[random.nextInt(gender.length)]);
