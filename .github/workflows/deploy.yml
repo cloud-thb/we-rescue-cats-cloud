@@ -92,7 +92,7 @@ jobs:
       - name: Build Docker Image
         uses: docker/build-push-action@v5
         with:
-          context: ./backend
+          context: .
           file: ./backend/Dockerfile
           push: false
           tags: we-rescue-cats-backend:latest
