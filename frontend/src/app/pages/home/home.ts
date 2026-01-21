@@ -69,10 +69,10 @@ export class HomeComponent implements OnInit {
   }
 
   loadFeaturedCats() {
-    this.catService.getAvailableCats().subscribe({
+    this.catService.getAllCats().subscribe({
       next: (cats) => {
         if (cats) {
-          this.featuredCats = cats.slice(0, 6);
+          this.featuredCats = cats.filter(cat => cat.adoptionStatus === 'AVAILABLE').slice(0, 6);
         }
         this.loading = false;
       },
