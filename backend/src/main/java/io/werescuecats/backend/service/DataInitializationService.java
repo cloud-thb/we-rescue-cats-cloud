@@ -1,24 +1,17 @@
 package io.werescuecats.backend.service;
 
-import io.werescuecats.backend.config.CatApiConfig;
 import io.werescuecats.backend.entity.*;
 import io.werescuecats.backend.repository.*;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.client.RestTemplate;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 
@@ -37,18 +30,9 @@ public class DataInitializationService {
 
     private final PasswordEncoder passwordEncoder;
 
-    private final CatApiConfig config;
-
-    private final RestTemplate restTemplate;
-
     @EventListener(ApplicationReadyEvent.class)
     @Transactional
     public void initializeData() {
-        // userRepository.deleteAll();
-        // // breedRepository.deleteAll();
-        // catRepository.deleteAll();
-        // adoptionRepository.deleteAll();
-
         log.info("Initializing sample data...");
 
 
@@ -112,41 +96,6 @@ public class DataInitializationService {
         }
 
         log.info("Created {} users", userRepository.count());
-    }
-
-    @Transactional
-    public String fetchImageUrlForSpecificBreed(String breedId) {
-        log.info("Fetching image URL for breed: {}", breedId);
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("x-api-key", config.getApiKey());
-        headers.set("User-Agent", "WeRescueCats/1.0");
-        HttpEntity<?> entity = new HttpEntity<>(headers);
-
-        try {
-            String url = config.getBaseUrl() + "/images/search?limit=1&breed_ids=" + breedId;
-
-            ResponseEntity<Map[]> response = restTemplate.exchange(
-                    url,
-                    HttpMethod.GET,
-                    entity,
-                    Map[].class);
-
-            Map[] images = response.getBody();
-
-            if (images != null && images.length > 0) {
-                String imageUrl = (String) images[0].get("url");
-                log.info("Found image URL: {}", imageUrl);
-                return imageUrl;
-            }
-
-            log.warn("No images found for breed: {}", breedId);
-            return null;
-
-        } catch (Exception e) {
-            log.error("Failed to fetch image URL for breed: {}", breedId, e);
-            throw new RuntimeException("API call failed", e);
-        }
     }
 
     private void createSampleCats() {
