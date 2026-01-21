@@ -86,8 +86,8 @@ jobs:
       - name: Log in to Docker
         uses: docker/login-action@v3
         with:
-          # Wir loggen uns hier nicht wirklich irgendwo ein, aber der Schritt ist gut für die Initialisierung
-          logout: true
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
 
       - name: Build Docker Image
         uses: docker/build-push-action@v5
