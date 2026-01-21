@@ -26,6 +26,14 @@ data "aws_ami" "latest_ubuntu" {
   }
 }
 
+data "aws_subnet" "alb_a" {
+  id = "subnet-07ae812c246f41e72"
+}
+
+data "aws_subnet" "alb_b" {
+  id = "subnet-0198bd9fb9a9d05b7"
+}
+
 # ============== EC2 Instanz ==============
 resource "aws_instance" "backend" {
   ami                    = data.aws_ami.latest_ubuntu.id // Benutzt jetzt die automatisch gefundene, neueste Ubuntu-ID
@@ -73,7 +81,7 @@ resource "aws_s3_bucket_website_configuration" "frontend" {
     suffix = "index.html"
   }
   error_document {
-    key = "error.html"
+    key = "index.html"
   }
 }
 
@@ -97,4 +105,39 @@ resource "aws_lb" "main" {
   tags = {
     Name = "semester-projekt-alb"
   }
+}
+
+resource "aws_lb_target_group" "backend" {
+  name        = "semester-projekt-backend"
+  port        = 8080
+  protocol    = "HTTP"
+  vpc_id      = data.aws_subnet.alb_a.vpc_id
+  target_type = "instance"
+
+  health_check {
+    path                = "/"
+    protocol            = "HTTP"
+    matcher             = "200-499"
+    interval            = 30
+    timeout             = 5
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
+  }
+}
+
+resource "aws_lb_listener" "http" {
+  load_balancer_arn = aws_lb.main.arn
+  port              = 80
+  protocol          = "HTTP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.backend.arn
+  }
+}
+
+resource "aws_lb_target_group_attachment" "backend" {
+  target_group_arn = aws_lb_target_group.backend.arn
+  target_id        = aws_instance.backend.id
+  port             = 8080
 }
