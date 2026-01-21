@@ -153,4 +153,4 @@ jobs:
             -Dsonar.test.inclusions=**/*.spec.ts
             -Dsonar.exclusions=**/node_modules/**,**/*.spec.ts
         env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN2 }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
