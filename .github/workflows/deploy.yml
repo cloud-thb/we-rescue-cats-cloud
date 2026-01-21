@@ -43,20 +43,6 @@ jobs:
           npm ci --legacy-peer-deps
           npm run build -- --configuration production
       
-      - name: Debug - Check Frontend Build Output
-        run: |
-          echo "=== Frontend directory structure ==="
-          ls -la frontend/
-          echo ""
-          echo "=== Contents of frontend/dist/ ==="
-          ls -la frontend/dist/ || echo "dist/ does not exist"
-          echo ""
-          echo "=== Find all index.html files ==="
-          find frontend/ -name "index.html" -type f
-          echo ""
-          echo "=== Complete dist tree ==="
-          tree frontend/dist/ || find frontend/dist/ -type f
-      
       - name: Upload Frontend Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -88,14 +74,6 @@ jobs:
         with:
           name: frontend-dist
           path: frontend-dist
-      
-      - name: Debug - Check Downloaded Frontend
-        run: |
-          echo "=== Downloaded frontend-dist structure ==="
-          ls -la frontend-dist/
-          echo ""
-          echo "=== All files in frontend-dist ==="
-          find frontend-dist/ -type f | head -20
       
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -135,18 +113,42 @@ jobs:
           SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
         run: |
+          # Setup SSH
           mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
           
-          docker save we-rescue-cats-backend:latest | ssh -i ~/.ssh/id_rsa ${EC2_USER}@${EC2_HOST} 'docker load'
+          # Add EC2 host to known_hosts
+          ssh-keyscan -H $EC2_HOST >> ~/.ssh/known_hosts 2>/dev/null
           
-          ssh -i ~/.ssh/id_rsa ${EC2_USER}@${EC2_HOST} " \
-            docker stop we-rescue-cats-backend || true && \
-            docker rm we-rescue-cats-backend || true && \
-            docker run -d --name we-rescue-cats-backend --restart unless-stopped -p 8080:8080 \
-            -e SPRING_DATASOURCE_URL='jdbc:mysql://${{ env.RDS_ENDPOINT }}:3306/we_rescue_cats?createDatabaseIfNotExist=true' \
-            -e SPRING_DATASOURCE_USERNAME=admin \
-            -e SPRING_DATASOURCE_PASSWORD='$DB_PASSWORD' \
-            we-rescue-cats-backend:latest"
+          # Test SSH connection
+          echo "Testing SSH connection..."
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ${EC2_USER}@${EC2_HOST} "echo 'SSH connection successful'"
+          
+          # Transfer Docker image
+          echo "Transferring Docker image..."
+          docker save we-rescue-cats-backend:latest | ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ${EC2_USER}@${EC2_HOST} 'docker load'
+          
+          # Deploy container
+          echo "Deploying container..."
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ${EC2_USER}@${EC2_HOST} << 'EOF'
+            # Stop and remove old container
+            docker stop we-rescue-cats-backend 2>/dev/null || true
+            docker rm we-rescue-cats-backend 2>/dev/null || true
+            
+            # Run new container
+            docker run -d \
+              --name we-rescue-cats-backend \
+              --restart unless-stopped \
+              -p 8080:8080 \
+              -e SPRING_DATASOURCE_URL='jdbc:mysql://${{ env.RDS_ENDPOINT }}:3306/we_rescue_cats?createDatabaseIfNotExist=true' \
+              -e SPRING_DATASOURCE_USERNAME=admin \
+              -e SPRING_DATASOURCE_PASSWORD='${{ secrets.DB_PASSWORD }}' \
+              we-rescue-cats-backend:latest
+            
+            # Check if container is running
+            docker ps | grep we-rescue-cats-backend
+          EOF
+          
+          echo "Deployment completed successfully!"
