@@ -113,26 +113,43 @@ jobs:
           SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
         run: |
-          # Setup SSH
+          set -e
+          
+          # Setup SSH directory
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
+          
+          # Write SSH key (preserving newlines)
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           
-          # Add EC2 host to known_hosts
-          ssh-keyscan -H $EC2_HOST >> ~/.ssh/known_hosts 2>/dev/null
+          # Verify key format
+          echo "Checking SSH key format..."
+          head -n 1 ~/.ssh/id_rsa
+          tail -n 1 ~/.ssh/id_rsa
           
-          # Test SSH connection
+          # Add EC2 host to known_hosts
+          echo "Adding host to known_hosts..."
+          ssh-keyscan -H $EC2_HOST >> ~/.ssh/known_hosts 2>&1 || echo "Warning: ssh-keyscan failed"
+          
+          # Test connection with verbose output
           echo "Testing SSH connection..."
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ${EC2_USER}@${EC2_HOST} "echo 'SSH connection successful'"
+          ssh -vvv -o StrictHostKeyChecking=no -o ConnectTimeout=10 -i ~/.ssh/id_rsa ${EC2_USER}@${EC2_HOST} "echo 'Connection successful'" 2>&1 || {
+            echo "SSH connection failed!"
+            echo "Trying to ping host..."
+            ping -c 3 $EC2_HOST || echo "Host not reachable"
+            exit 1
+          }
           
           # Transfer Docker image
-          echo "Transferring Docker image..."
-          docker save we-rescue-cats-backend:latest | ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ${EC2_USER}@${EC2_HOST} 'docker load'
+          echo "Transferring Docker image (this may take a while)..."
+          docker save we-rescue-cats-backend:latest | gzip | ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ${EC2_USER}@${EC2_HOST} 'gunzip | docker load'
           
           # Deploy container
           echo "Deploying container..."
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ${EC2_USER}@${EC2_HOST} << 'EOF'
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ${EC2_USER}@${EC2_HOST} bash << 'ENDSSH'
+            set -e
+            
             # Stop and remove old container
             docker stop we-rescue-cats-backend 2>/dev/null || true
             docker rm we-rescue-cats-backend 2>/dev/null || true
@@ -147,8 +164,18 @@ jobs:
               -e SPRING_DATASOURCE_PASSWORD='${{ secrets.DB_PASSWORD }}' \
               we-rescue-cats-backend:latest
             
+            # Wait a moment for container to start
+            sleep 2
+            
             # Check if container is running
-            docker ps | grep we-rescue-cats-backend
-          EOF
+            if docker ps | grep -q we-rescue-cats-backend; then
+              echo "✅ Container is running successfully"
+              docker ps | grep we-rescue-cats-backend
+            else
+              echo "❌ Container failed to start"
+              docker logs we-rescue-cats-backend 2>&1 || true
+              exit 1
+            fi
+          ENDSSH
           
-          echo "Deployment completed successfully!"
+          echo "🚀 Deployment completed successfully!"
