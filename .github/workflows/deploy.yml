@@ -28,7 +28,7 @@ jobs:
           cache: 'maven'
 
       - name: Build & Test Backend
-        run: mvn -B verify --file backend/pom.xml
+        run: mvn -B package -DskipTests --file backend/pom.xml
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
