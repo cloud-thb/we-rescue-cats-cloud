@@ -11,7 +11,7 @@ import lombok.Getter;
 public class CatApiConfig {
     
     @Getter
-    @Value("${catapi.key}")
+    @Value("live_REPpK4lQGn2aP0UT1PNiZoX81otNElo3F3TWfqL9kdsOD2gnEM5bU7OSwZZwCJeK")
     private String apiKey;
     
     @Getter
