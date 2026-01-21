@@ -9,7 +9,7 @@ COPY .mvnw .
 COPY mvnw.cmd .
 
 #Ausführbarer machen
-RUN chmod +x ./mvnm
+RUN chmod +x mvnm
 
 # Download dependencies (cached layer)
 RUN ./mvnw dependency:go-offline -B
