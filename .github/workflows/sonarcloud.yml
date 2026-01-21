@@ -104,7 +104,7 @@ jobs:
 
       - name: Run frontend tests (coverage)
         working-directory: frontend
-        run: npm test -- --watch=false --code-coverage
+        run: npm test -- --watch=false --code-coverage --browsers=ChromeHeadless
 
       - name: Setup JDK
         uses: actions/setup-java@v4
