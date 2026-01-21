@@ -47,7 +47,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: frontend-dist
-          path: frontend/dist/
+          path: frontend/dist/we-rescue-cats/browser/
       
       - name: Upload Backend Artifact
         uses: actions/upload-artifact@v4
@@ -73,7 +73,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: frontend-dist
-          path: frontend/dist
+          path: frontend-dist
       
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -97,20 +97,9 @@ jobs:
           push: false
           tags: we-rescue-cats-backend:latest
           load: true
-          
-      - name: Debug - Check Frontend Structure
-        run: |
-          echo "=== Frontend dist contents ==="
-          ls -la frontend/dist/
-          echo ""
-          echo "=== Looking for browser folder ==="
-          find frontend/dist/ -name "browser" -type d
-          echo ""
-          echo "=== All files in dist ==="
-          find frontend/dist/ -type f | head -20
-          
+      
       - name: Deploy Frontend to S3
-        run: aws s3 sync frontend/dist/we-rescue-cats/browser/ s3://${{ env.S3_BUCKET }}/ --delete
+        run: aws s3 sync frontend-dist/ s3://${{ env.S3_BUCKET }}/ --delete
       
       - name: Configure SSH and Deploy Backend to EC2
         env:
