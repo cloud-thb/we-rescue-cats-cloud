@@ -100,7 +100,11 @@ jobs:
       
       - name: Deploy Frontend to S3
         run: |
-          if [ -d "frontend-dist/browser" ]; then
+          if [ -d "frontend-dist/frontend/browser" ]; then
+            aws s3 sync frontend-dist/frontend/browser/ s3://${{ env.S3_BUCKET }}/ --delete
+          elif [ -d "frontend-dist/frontend" ]; then
+            aws s3 sync frontend-dist/frontend/ s3://${{ env.S3_BUCKET }}/ --delete
+          elif [ -d "frontend-dist/browser" ]; then
             aws s3 sync frontend-dist/browser/ s3://${{ env.S3_BUCKET }}/ --delete
           elif [ -d "frontend-dist/we-rescue-cats/browser" ]; then
             aws s3 sync frontend-dist/we-rescue-cats/browser/ s3://${{ env.S3_BUCKET }}/ --delete
