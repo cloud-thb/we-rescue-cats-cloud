@@ -1,0 +1,166 @@
+name: Deploy to AWS
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  AWS_REGION: us-east-1
+  EC2_HOST: 44.220.245.215
+  EC2_USER: ubuntu
+  S3_BUCKET: cloud-semesterprojekt-2026
+  RDS_ENDPOINT: semesterprojekt-db.chevppzwwnxo.us-east-1.rds.amazonaws.com
+
+jobs:
+  build-and-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+      
+      - name: Build & Test Backend
+        run: mvn -B package -DskipTests --file backend/pom.xml
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      
+      - name: Install & Build Frontend
+        working-directory: ./frontend
+        run: |
+          npm ci --legacy-peer-deps
+          npm run build -- --configuration production
+      
+      - name: Upload Frontend Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist/
+      
+      - name: Upload Backend Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-jar
+          path: backend/target/*.jar
+
+  deploy:
+    name: Deploy to AWS
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Download Backend JAR
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-jar
+          path: backend/target
+      
+      - name: Download Frontend Dist
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend-dist
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Log in to Docker
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+      
+      - name: Build Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: false
+          tags: we-rescue-cats-backend:latest
+          load: true
+      
+      - name: Deploy Frontend to S3
+        run: |
+          if [ -d "frontend-dist/browser" ]; then
+            aws s3 sync frontend-dist/browser/ s3://${{ env.S3_BUCKET }}/ --delete
+          elif [ -d "frontend-dist/we-rescue-cats/browser" ]; then
+            aws s3 sync frontend-dist/we-rescue-cats/browser/ s3://${{ env.S3_BUCKET }}/ --delete
+          else
+            aws s3 sync frontend-dist/ s3://${{ env.S3_BUCKET }}/ --delete
+          fi
+      
+      - name: Configure SSH and Deploy Backend to EC2
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        run: |
+          set -e
+          
+          # Setup SSH directory
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          
+          # Write SSH key
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          
+          # Add EC2 host to known_hosts
+          ssh-keyscan -H $EC2_HOST >> ~/.ssh/known_hosts 2>&1
+          
+          # Test connection
+          echo "Testing SSH connection to $EC2_HOST..."
+          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 -i ~/.ssh/id_rsa ${EC2_USER}@${EC2_HOST} "echo '✅ SSH connection successful'"
+          
+          # Transfer Docker image (compressed)
+          echo "Transferring Docker image..."
+          docker save we-rescue-cats-backend:latest | gzip | ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ${EC2_USER}@${EC2_HOST} 'gunzip | docker load'
+          
+          # Deploy container
+          echo "Deploying container..."
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ${EC2_USER}@${EC2_HOST} bash << 'ENDSSH'
+            set -e
+            
+            docker stop we-rescue-cats-backend 2>/dev/null || true
+            docker rm we-rescue-cats-backend 2>/dev/null || true
+            
+            docker run -d \
+              --name we-rescue-cats-backend \
+              --restart unless-stopped \
+              -p 8080:8080 \
+              -e SPRING_DATASOURCE_URL='jdbc:mysql://${{ env.RDS_ENDPOINT }}:3306/we_rescue_cats?createDatabaseIfNotExist=true' \
+              -e SPRING_DATASOURCE_USERNAME=admin \
+              -e SPRING_DATASOURCE_PASSWORD='${{ secrets.DB_PASSWORD }}' \
+              we-rescue-cats-backend:latest
+            
+            sleep 2
+            
+            if docker ps | grep -q we-rescue-cats-backend; then
+              echo "✅ Container is running"
+              docker ps | grep we-rescue-cats-backend
+            else
+              echo "❌ Container failed"
+              docker logs we-rescue-cats-backend 2>&1
+              exit 1
+            fi
+          ENDSSH
+          
+          echo "🚀 Deployment completed!"
