@@ -7,7 +7,7 @@ on:
 
 env:
   AWS_REGION: us-east-1
-  EC2_HOST: 44.200.166.119
+  EC2_HOST: 44.220.245.215
   EC2_USER: ubuntu
   S3_BUCKET: cloud-semesterprojekt-2026
   RDS_ENDPOINT: semesterprojekt-db.chevppzwwnxo.us-east-1.rds.amazonaws.com
@@ -73,7 +73,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: frontend-dist
-          path: frontend/dist
+          path: frontend-dist
       
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -99,25 +99,68 @@ jobs:
           load: true
       
       - name: Deploy Frontend to S3
-        run: aws s3 sync frontend/dist/we-rescue-cats/browser/ s3://${{ env.S3_BUCKET }}/ --delete
+        run: |
+          if [ -d "frontend-dist/browser" ]; then
+            aws s3 sync frontend-dist/browser/ s3://${{ env.S3_BUCKET }}/ --delete
+          elif [ -d "frontend-dist/we-rescue-cats/browser" ]; then
+            aws s3 sync frontend-dist/we-rescue-cats/browser/ s3://${{ env.S3_BUCKET }}/ --delete
+          else
+            aws s3 sync frontend-dist/ s3://${{ env.S3_BUCKET }}/ --delete
+          fi
       
       - name: Configure SSH and Deploy Backend to EC2
         env:
           SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
         run: |
+          set -e
+          
+          # Setup SSH directory
           mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          
+          # Write SSH key
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
           
-          docker save we-rescue-cats-backend:latest | ssh -i ~/.ssh/id_rsa ${EC2_USER}@${EC2_HOST} 'docker load'
+          # Add EC2 host to known_hosts
+          ssh-keyscan -H $EC2_HOST >> ~/.ssh/known_hosts 2>&1
           
-          ssh -i ~/.ssh/id_rsa ${EC2_USER}@${EC2_HOST} " \
-            docker stop we-rescue-cats-backend || true && \
-            docker rm we-rescue-cats-backend || true && \
-            docker run -d --name we-rescue-cats-backend --restart unless-stopped -p 8080:8080 \
-            -e SPRING_DATASOURCE_URL='jdbc:mysql://${{ env.RDS_ENDPOINT }}:3306/we_rescue_cats?createDatabaseIfNotExist=true' \
-            -e SPRING_DATASOURCE_USERNAME=admin \
-            -e SPRING_DATASOURCE_PASSWORD='$DB_PASSWORD' \
-            we-rescue-cats-backend:latest"
+          # Test connection
+          echo "Testing SSH connection to $EC2_HOST..."
+          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 -i ~/.ssh/id_rsa ${EC2_USER}@${EC2_HOST} "echo '✅ SSH connection successful'"
+          
+          # Transfer Docker image (compressed)
+          echo "Transferring Docker image..."
+          docker save we-rescue-cats-backend:latest | gzip | ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ${EC2_USER}@${EC2_HOST} 'gunzip | docker load'
+          
+          # Deploy container
+          echo "Deploying container..."
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ${EC2_USER}@${EC2_HOST} bash << 'ENDSSH'
+            set -e
+            
+            docker stop we-rescue-cats-backend 2>/dev/null || true
+            docker rm we-rescue-cats-backend 2>/dev/null || true
+            
+            docker run -d \
+              --name we-rescue-cats-backend \
+              --restart unless-stopped \
+              -p 8080:8080 \
+              -e SPRING_DATASOURCE_URL='jdbc:mysql://${{ env.RDS_ENDPOINT }}:3306/we_rescue_cats?createDatabaseIfNotExist=true' \
+              -e SPRING_DATASOURCE_USERNAME=admin \
+              -e SPRING_DATASOURCE_PASSWORD='${{ secrets.DB_PASSWORD }}' \
+              we-rescue-cats-backend:latest
+            
+            sleep 2
+            
+            if docker ps | grep -q we-rescue-cats-backend; then
+              echo "✅ Container is running"
+              docker ps | grep we-rescue-cats-backend
+            else
+              echo "❌ Container failed"
+              docker logs we-rescue-cats-backend 2>&1
+              exit 1
+            fi
+          ENDSSH
+          
+          echo "🚀 Deployment completed!"
