@@ -69,6 +69,8 @@ public class Adoption {
     @Getter @Setter
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    private static final String UNKNOWN = "Unknown";
     
     public Adoption() {}
     
@@ -131,15 +133,15 @@ public class Adoption {
     }
     
     public String getAdopterName() {
-        return user != null ? user.getFullName() : "Unknown";
+        return user != null ? user.getFullName() : UNKNOWN;
     }
     
     public String getCatName() {
-        return cat != null ? cat.getName() : "Unknown";
+        return cat != null ? cat.getName() : UNKNOWN;
     }
     
     public String getCatBreed() {
-        return cat != null && cat.getBreed() != null ? cat.getBreed().getName() : "Unknown";
+        return cat != null && cat.getBreed() != null ? cat.getBreed().getName() : UNKNOWN;
     }
     
     public long getDaysFromApplication() {

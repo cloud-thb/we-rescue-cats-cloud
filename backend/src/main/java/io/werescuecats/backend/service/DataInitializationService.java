@@ -30,6 +30,8 @@ public class DataInitializationService {
 
     private final PasswordEncoder passwordEncoder;
 
+    private final Random random = new Random();
+
     @EventListener(ApplicationReadyEvent.class)
     @Transactional
     public void initializeData() {
@@ -107,7 +109,6 @@ public class DataInitializationService {
             return;
         }
 
-        Random random = new Random();
 
         // Dresden, Germany area coordinates
         double baseLat = 51.0504;
@@ -176,7 +177,6 @@ public class DataInitializationService {
         }
 
         User admin = adminOpt.get();
-        Random random = new Random();
 
         String[] adoptionNotes = {
                 "I have experience with cats and would love to provide a loving home.",
