@@ -10,10 +10,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
-import java.util.Random;
 
 @Service
 @Slf4j
@@ -30,13 +30,16 @@ public class DataInitializationService {
 
     private final PasswordEncoder passwordEncoder;
 
-    private final Random random = new Random();
+    /**
+     * SecureRandom is used to satisfy SonarCloud security rules,
+     * even though this randomness is only used for demo data.
+     */
+    private final SecureRandom random = new SecureRandom();
 
     @EventListener(ApplicationReadyEvent.class)
     @Transactional
     public void initializeData() {
         log.info("Initializing sample data...");
-
 
         // Wait for breeds to be loaded first
         if (breedRepository.count() == 0) {
