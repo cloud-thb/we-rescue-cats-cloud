@@ -115,6 +115,11 @@ jobs:
         working-directory: frontend
         run: npm test -- --watch=false --code-coverage --browsers=ChromeHeadless
 
+      - name: Normalize LCOV paths (Windows → Unix)
+        working-directory: frontend
+        run: |
+          sed -i 's|\\|/|g' coverage/lcov.info
+
       # -------- Backend --------
       - name: Setup JDK
         uses: actions/setup-java@v4
