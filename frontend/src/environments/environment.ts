@@ -1,4 +1,4 @@
 export const environment = {
     production: false,
-    apiUrl: 'http://localhost:8080/api',
+    apiUrl: 'http://semester-projekt-alb-197411753.us-east-1.elb.amazonaws.com/api',
   };

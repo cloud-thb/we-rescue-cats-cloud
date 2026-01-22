@@ -46,11 +46,21 @@ resource "aws_instance" "backend" {
   }
 }
 
+# ============== Elastic IP ==============
+resource "aws_eip" "backend" {
+  instance = aws_instance.backend.id
+  domain   = "vpc"
+
+  tags = {
+    Name = "semester-projekt-eip"
+  }
+}
+
 # ============== RDS Datenbank ==============
 resource "aws_db_instance" "main" {
   identifier               = "semesterprojekt-db"
   engine                   = "mysql"
-  engine_version           = "8.0"                   
+  engine_version           = "8.0.43"
   instance_class           = "db.t3.micro"           
   allocated_storage        = 20
   storage_type             = "gp2"
@@ -60,6 +70,10 @@ resource "aws_db_instance" "main" {
   skip_final_snapshot      = true
   publicly_accessible      = true
   multi_az                 = false
+
+  lifecycle {
+    ignore_changes = [password]
+  }
 
   tags = {
     Name = "semesterprojekt-db"
@@ -81,7 +95,7 @@ resource "aws_s3_bucket_website_configuration" "frontend" {
     suffix = "index.html"
   }
   error_document {
-    key = "index.html"
+    key = "error.html"
   }
 }
 
@@ -129,6 +143,10 @@ resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.main.arn
   port              = 80
   protocol          = "HTTP"
+
+  lifecycle {
+    ignore_changes = [default_action]
+  }
 
   default_action {
     type             = "forward"

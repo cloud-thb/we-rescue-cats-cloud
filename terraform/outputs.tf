@@ -1,6 +1,6 @@
 output "ec2_public_ip" {
   description = "EC2 instance public IP"
-  value       = aws_instance.backend.public_ip
+  value       = aws_eip.backend.public_ip
 }
 
 output "rds_endpoint" {
