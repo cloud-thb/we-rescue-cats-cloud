@@ -51,25 +51,26 @@ public class SecurityConfig {
         return http.build();
     }
 
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList(
-                "http://localhost:4200",
-                "http://cloud-semesterprojekt-2026.s3-website-us-east-1.amazonaws.com"
-        ));
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("*"));
-        configuration.setAllowCredentials(true);
+     @Bean
+      public CorsConfigurationSource corsConfigurationSource() {
+          CorsConfiguration configuration = new CorsConfiguration();
+          configuration.setAllowedOrigins(Arrays.asList(
+                  "http://localhost:4200",
+                  "http://cloud-semesterprojekt-2026.s3-website-us-east-1.amazonaws.com",
+                  "https://cloud-semesterprojekt-2026.s3-website-us-east-1.amazonaws.com"
+          ));
+          configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+          configuration.setAllowedHeaders(Arrays.asList("*"));
+          configuration.setAllowCredentials(true);
 
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/api/**", configuration);
-        return source;
-    }
+          UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+          source.registerCorsConfiguration("/api/**", configuration);
+          return source;
+      }
 
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
-        return config.getAuthenticationManager();
+       return config.getAuthenticationManager();
     }
 
     @Bean
